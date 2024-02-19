@@ -6,10 +6,10 @@ import { MenuOverlayItem } from '@ircsignpost/signpost-base/dist/src/menu-overla
 import {
   CategoryWithSections,
   ZendeskCategory,
+  getTranslationsFromDynamicContent,
 } from '@ircsignpost/signpost-base/dist/src/zendesk';
 import { GetStaticProps } from 'next';
 import getConfig from 'next/config';
-import { useRouter } from 'next/router';
 
 import {
   ABOUT_US_ARTICLE_ID,
@@ -38,13 +38,6 @@ import {
   populateMenuOverlayStrings,
 } from '../lib/translations';
 import { getZendeskMappedUrl, getZendeskUrl } from '../lib/url';
-// TODO Use real Zendesk API implementation.
-import {
-  getArticle,
-  getCategories,
-  getCategoriesWithSections,
-  getTranslationsFromDynamicContent,
-} from '../lib/zendesk-fake';
 
 interface Custom404Props {
   currentLocale: Locale;
@@ -100,42 +93,12 @@ export const getStaticProps: GetStaticProps = async ({ locale }) => {
 
   const strings: Custom404Strings = populateCustom404Strings(dynamicContent);
 
-  let categories: ZendeskCategory[] | CategoryWithSections[];
-  if (USE_CAT_SEC_ART_CONTENT_STRUCTURE) {
-    categories = await getCategoriesWithSections(
-      currentLocale,
-      getZendeskUrl(),
-      (c) => !CATEGORIES_TO_HIDE.includes(c.id)
-    );
-    categories.forEach(({ sections }) => {
-      sections.forEach(
-        (s) => (s.icon = SECTION_ICON_NAMES[s.id] || 'help_outline')
-      );
-    });
-  } else {
-    categories = await getCategories(currentLocale, getZendeskUrl());
-    categories = categories.filter((c) => !CATEGORIES_TO_HIDE.includes(c.id));
-    categories.forEach(
-      (c) => (c.icon = CATEGORY_ICON_NAMES[c.id] || 'help_outline')
-    );
-  }
-
-  const aboutUsArticle = await getArticle(
-    currentLocale,
-    ABOUT_US_ARTICLE_ID,
-    getZendeskUrl(),
-    getZendeskMappedUrl(),
-    ZENDESK_AUTH_HEADER
-  );
   const menuOverlayItems = getMenuItems(
-    populateMenuOverlayStrings(dynamicContent),
-    categories,
-    !!aboutUsArticle
+    populateMenuOverlayStrings(dynamicContent)
   );
 
   const footerLinks = getFooterItems(
-    populateMenuOverlayStrings(dynamicContent),
-    categories
+    populateMenuOverlayStrings(dynamicContent)
   );
 
   return {
@@ -143,7 +106,6 @@ export const getStaticProps: GetStaticProps = async ({ locale }) => {
       currentLocale,
       strings,
       menuOverlayItems,
-      categories,
       title: strings.errorStrings.subtitle?.concat(' - ', SITE_TITLE),
       footerLinks,
     },
