@@ -1,10 +1,13 @@
 import { Directus } from '@directus/sdk';
 import CookieBanner from '@ircsignpost/signpost-base/dist/src/cookie-banner';
 import {
+  DirectusServiceCategory,
   getDirectusAccessibility,
   getDirectusArticles,
+  getDirectusCities,
   getDirectusPopulationsServed,
   getDirectusProviders,
+  getDirectusRegions,
   getDirectusServiceCategories,
 } from '@ircsignpost/signpost-base/dist/src/directus';
 import { HeaderBannerStrings } from '@ircsignpost/signpost-base/dist/src/header-banner';
@@ -16,6 +19,7 @@ import { ServiceMapProps } from '@ircsignpost/signpost-base/dist/src/service-map
 import {
   CategoryWithSections,
   ZendeskCategory,
+  getTranslationsFromDynamicContent,
 } from '@ircsignpost/signpost-base/dist/src/zendesk';
 import type { NextPage } from 'next';
 import { GetStaticProps } from 'next';
@@ -25,12 +29,10 @@ import {
   ABOUT_US_ARTICLE_ID,
   CATEGORIES_TO_HIDE,
   CATEGORY_ICON_NAMES,
-  COUNTRY_ID,
   DIRECTUS_AUTH_TOKEN,
   DIRECTUS_COUNTRY_ID,
   DIRECTUS_INSTANCE,
   GOOGLE_ANALYTICS_IDS,
-  MAP_DEFAULT_COORDS,
   REVALIDATION_TIMEOUT_SECONDS,
   SEARCH_BAR_INDEX,
   SECTION_ICON_NAMES,
@@ -57,13 +59,6 @@ import {
   populateSocialMediaLinks,
 } from '../lib/translations';
 import { getZendeskMappedUrl, getZendeskUrl } from '../lib/url';
-// TODO Use real Zendesk API implementation.
-import {
-  getArticle,
-  getCategories,
-  getCategoriesWithSections,
-  getTranslationsFromDynamicContent,
-} from '../lib/zendesk-fake';
 
 interface HomeProps {
   currentLocale: Locale;
@@ -131,44 +126,12 @@ export const getStaticProps: GetStaticProps = async ({ locale }) => {
     ZENDESK_AUTH_HEADER
   );
 
-  let categories: ZendeskCategory[] | CategoryWithSections[];
-  if (USE_CAT_SEC_ART_CONTENT_STRUCTURE) {
-    categories = await getCategoriesWithSections(
-      currentLocale,
-      getZendeskUrl(),
-      (c) => !CATEGORIES_TO_HIDE.includes(c.id)
-    );
-    categories.forEach(({ sections }) => {
-      sections.forEach(
-        (s) => (s.icon = SECTION_ICON_NAMES[s.id] || 'help_outline')
-      );
-    });
-  } else {
-    categories = await getCategories(currentLocale, getZendeskUrl());
-    categories = categories.filter((c) => !CATEGORIES_TO_HIDE.includes(c.id));
-    categories.forEach(
-      (c) => (c.icon = CATEGORY_ICON_NAMES[c.id] || 'help_outline')
-    );
-  }
-
-  const aboutUsArticle = await getArticle(
-    currentLocale,
-    ABOUT_US_ARTICLE_ID,
-    getZendeskUrl(),
-    getZendeskMappedUrl(),
-    ZENDESK_AUTH_HEADER
-  );
-  const aboutUsTextHtml = aboutUsArticle ? aboutUsArticle.body : '';
-
   const menuOverlayItems = getMenuItems(
-    populateMenuOverlayStrings(dynamicContent),
-    categories,
-    !!aboutUsArticle
+    populateMenuOverlayStrings(dynamicContent)
   );
 
   const footerLinks = getFooterItems(
-    populateMenuOverlayStrings(dynamicContent),
-    categories
+    populateMenuOverlayStrings(dynamicContent)
   );
 
   const strings = populateHomePageStrings(dynamicContent);
@@ -202,10 +165,47 @@ export const getStaticProps: GetStaticProps = async ({ locale }) => {
   );
   const uniquePopulationsIdsArray = Array.from(uniquePopulationsIdsSet);
 
+  const uniqueRegionsIds = new Set(services.map((service) => service.region));
+
+  const uniqueCitiesIds = new Set(services.map((service) => service.city));
+
   const uniqueProvidersIdsSet = new Set(services.flatMap((x) => x.provider.id));
   const uniqueProvidersIdsArray = Array.from(uniqueProvidersIdsSet);
 
-  const serviceTypes = await getDirectusServiceCategories(directus);
+  const regions = await getDirectusRegions(
+    Array.from(uniqueRegionsIds),
+    directus
+  );
+  const cities = await getDirectusCities(Array.from(uniqueCitiesIds), directus);
+
+  const fetchServiceTypes = await getDirectusServiceCategories(directus);
+  const uniqueTypesSet = new Set<number>();
+  services.forEach((service) => {
+    service.categories.forEach((category) => {
+      uniqueTypesSet.add(category.service_categories_id.id);
+    });
+  });
+
+  const usedSubcategoryIds = new Set<number>();
+  services.forEach((service) => {
+    service.subcategories.forEach((subcategory) => {
+      usedSubcategoryIds.add(subcategory.services_subcategories_id);
+    });
+  });
+
+  const serviceTypes = fetchServiceTypes
+    .filter((type) => uniqueTypesSet.has(type.id))
+    .map((category) => {
+      const filteredSubcategories = category.services_subcategories.filter(
+        (subcategory) =>
+          usedSubcategoryIds.has(subcategory?.services_subcategories_id?.id)
+      );
+
+      return {
+        ...category,
+        services_subcategories: filteredSubcategories,
+      } as DirectusServiceCategory;
+    });
   const providersArray = await getDirectusProviders(
     directus,
     DIRECTUS_COUNTRY_ID
@@ -232,7 +232,6 @@ export const getStaticProps: GetStaticProps = async ({ locale }) => {
       socialMediaLinks: populateSocialMediaLinks(dynamicContent),
       serviceMapProps: {
         services,
-        defaultCoords: MAP_DEFAULT_COORDS,
         shareButton: getShareButtonStrings(dynamicContent),
         serviceTypes,
         providers,
@@ -240,9 +239,9 @@ export const getStaticProps: GetStaticProps = async ({ locale }) => {
         accessibility,
         showDirectus: true,
         currentLocale,
+        regions,
+        cities,
       },
-      categories,
-      aboutUsTextHtml,
       footerLinks,
     },
     revalidate: REVALIDATION_TIMEOUT_SECONDS,

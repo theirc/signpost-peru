@@ -63,7 +63,6 @@ import {
   populateServicePageStrings,
 } from '../../lib/translations';
 import { getSiteUrl, getZendeskMappedUrl, getZendeskUrl } from '../../lib/url';
-import { getArticle } from '../../lib/zendesk-fake';
 
 interface ServiceProps {
   pageTitle: string;
@@ -242,24 +241,14 @@ export const getStaticProps: GetStaticProps = async ({
       (c) => (c.icon = CATEGORY_ICON_NAMES[c.id] || 'help_outline')
     );
   }
-  const aboutUsArticle = await getArticle(
-    currentLocale,
-    ABOUT_US_ARTICLE_ID,
-    getZendeskUrl(),
-    getZendeskMappedUrl(),
-    ZENDESK_AUTH_HEADER
-  );
   const menuOverlayItems = getMenuItems(
-    populateMenuOverlayStrings(dynamicContent),
-    categories,
-    !!aboutUsArticle
+    populateMenuOverlayStrings(dynamicContent)
   );
 
   const strings = populateServicePageStrings(dynamicContent);
 
   const footerLinks = getFooterItems(
-    populateMenuOverlayStrings(dynamicContent),
-    categories
+    populateMenuOverlayStrings(dynamicContent)
   );
 
   const directus = new Directus(DIRECTUS_INSTANCE);

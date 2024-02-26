@@ -7,6 +7,7 @@ import {
 import {
   CategoryWithSections,
   ZendeskCategory,
+  getTranslationsFromDynamicContent,
 } from '@ircsignpost/signpost-base/dist/src/zendesk';
 import { GetStaticProps } from 'next';
 import getConfig from 'next/config';
@@ -40,13 +41,6 @@ import {
   populateSearchResultsPageStrings,
 } from '../lib/translations';
 import { getSiteUrl, getZendeskMappedUrl, getZendeskUrl } from '../lib/url';
-// TODO: import methods from '@ircsignpost/signpost-base/dist/src/zendesk' instead.
-import {
-  getArticle,
-  getCategories,
-  getCategoriesWithSections,
-  getTranslationsFromDynamicContent,
-} from '../lib/zendesk-fake';
 
 interface SearchResultsPageProps {
   currentLocale: Locale;
@@ -108,43 +102,12 @@ export const getStaticProps: GetStaticProps = async ({ locale }) => {
     ZENDESK_AUTH_HEADER
   );
 
-  let categories: ZendeskCategory[] | CategoryWithSections[];
-  if (USE_CAT_SEC_ART_CONTENT_STRUCTURE) {
-    categories = await getCategoriesWithSections(
-      currentLocale,
-      getZendeskUrl(),
-      (c) => !CATEGORIES_TO_HIDE.includes(c.id)
-    );
-    categories.forEach(({ sections }) => {
-      sections.forEach(
-        (s) => (s.icon = SECTION_ICON_NAMES[s.id] || 'help_outline')
-      );
-    });
-  } else {
-    categories = await getCategories(currentLocale, getZendeskUrl());
-    categories = categories.filter((c) => !CATEGORIES_TO_HIDE.includes(c.id));
-    categories.forEach(
-      (c) => (c.icon = CATEGORY_ICON_NAMES[c.id] || 'help_outline')
-    );
-  }
-
-  const aboutUsArticle = await getArticle(
-    currentLocale,
-    ABOUT_US_ARTICLE_ID,
-    getZendeskUrl(),
-    getZendeskMappedUrl(),
-    ZENDESK_AUTH_HEADER
-  );
-
   const menuOverlayItems = getMenuItems(
-    populateMenuOverlayStrings(dynamicContent),
-    categories,
-    !!aboutUsArticle
+    populateMenuOverlayStrings(dynamicContent)
   );
 
   const footerLinks = getFooterItems(
-    populateMenuOverlayStrings(dynamicContent),
-    categories
+    populateMenuOverlayStrings(dynamicContent)
   );
 
   const strings = populateSearchResultsPageStrings(dynamicContent);
