@@ -19,6 +19,7 @@ import { ServiceMapProps } from '@ircsignpost/signpost-base/dist/src/service-map
 import {
   CategoryWithSections,
   ZendeskCategory,
+  getArticle,
   getTranslationsFromDynamicContent,
 } from '@ircsignpost/signpost-base/dist/src/zendesk';
 import type { NextPage } from 'next';
@@ -136,6 +137,15 @@ export const getStaticProps: GetStaticProps = async ({ locale }) => {
 
   const strings = populateHomePageStrings(dynamicContent);
 
+  const aboutUsArticle = await getArticle(
+    currentLocale,
+    ABOUT_US_ARTICLE_ID,
+    getZendeskUrl(),
+    getZendeskMappedUrl(),
+    ZENDESK_AUTH_HEADER
+  );
+  const aboutUsTextHtml = aboutUsArticle ? aboutUsArticle.body : '';
+
   const directus = new Directus(DIRECTUS_INSTANCE);
   await directus.auth.static(DIRECTUS_AUTH_TOKEN);
 
@@ -242,6 +252,7 @@ export const getStaticProps: GetStaticProps = async ({ locale }) => {
         regions,
         cities,
       },
+      aboutUsTextHtml,
       footerLinks,
     },
     revalidate: REVALIDATION_TIMEOUT_SECONDS,
