@@ -22,16 +22,6 @@ export function getFooterItems(
 ): MenuOverlayItem[] {
   let items: MenuOverlayItem[] = [];
   items.push({
-    key: 'mapa-servicios',
-    label: 'Mapa de servicios del GIFMM',
-    href: 'https://mapeo-de-servicios.gifmm-colombia.site/',
-  });
-  items.push({
-    key: 'gifmm-contigo',
-    label: 'GIFMM Contigo',
-    href: 'https://gifmm-contigo.com/ ',
-  });
-  items.push({
     key: 'ecuador',
     label: 'InfoPalante Ecuador',
     href: 'https://www.infopalanteec.org/',
